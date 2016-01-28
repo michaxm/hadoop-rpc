@@ -12,17 +12,8 @@ import           Data.Word (Word16, Word64)
 
 ------------------------------------------------------------------------
 
-data NameNode   = NameNode
-    { nnEndPoint  :: !Endpoint
-    , nnPrincipal :: !(Maybe Principal)
-    } deriving (Eq, Ord, Show)
+type NameNode   = Endpoint
 type SocksProxy = Endpoint
-
-data Principal = Principal
-    { pService :: !Text
-    , pHost    :: !Text
-    , pRealm   :: !Text
-    } deriving (Eq, Ord, Show)
 
 data Endpoint = Endpoint
     { epHost :: !HostName
@@ -35,14 +26,9 @@ type Port     = Int
 ------------------------------------------------------------------------
 
 data HadoopConfig = HadoopConfig
-    { hcUser      :: !UserDetails
+    { hcUser      :: !User
     , hcNameNodes :: ![NameNode]
     , hcProxy     :: !(Maybe SocksProxy)
-    } deriving (Eq, Ord, Show)
-
-data UserDetails = UserDetails
-    { udUser     :: !User
-    , udAuthUser :: !(Maybe User)
     } deriving (Eq, Ord, Show)
 
 ------------------------------------------------------------------------

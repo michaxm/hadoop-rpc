@@ -1,5 +1,5 @@
 name:          hadoop-rpc
-version:       1.1.0.0
+version:       1.0.0.1
 
 synopsis:
   Use the Hadoop RPC interface from Haskell.
@@ -41,17 +41,14 @@ library
     Network.Hadoop.Hdfs
     Network.Hadoop.Read
     Network.Hadoop.Rpc
-    Network.Hadoop.Sasl
     Network.Hadoop.Socket
     Network.Hadoop.Stream
-    Network.Hadoop.Types
 
   build-depends: base
                , attoparsec
                , bytestring
                , cereal
                , exceptions
-               , gsasl
                , hashable
                , monad-loops
                , network

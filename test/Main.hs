@@ -21,7 +21,7 @@ testTree = testGroup "Commands" [listing]
 
 config :: HadoopConfig
 config = HadoopConfig {
-      hcUser      = UserDetails "hdfs" Nothing
-    , hcNameNodes = [NameNode (Endpoint "127.0.0.1" 8020) Nothing]
+      hcUser      = "hdfs"
+    , hcNameNodes = [(Endpoint "127.0.0.1" 8020)]
     , hcProxy     = Just (Endpoint "127.0.0.1" 2080)
     }
