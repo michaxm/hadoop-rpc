@@ -193,10 +193,10 @@ getListing' :: HdfsPath -> Hdfs (V.Vector FileStatus)
 getListing' path = fromMaybe V.empty <$> getListing path
 
 {-|
- Accesses a path as getListing does, but additionally requests the block file locations. Ony returns those.
+ Accesses a path as getListing does, but additionally requests the block file locations.
 -}
-getBlockLocations :: HdfsPath -> Hdfs (V.Vector FsLocations)
-getBlockLocations path = getListingInternal True path >>= return . (fromMaybe V.empty) >>= return . (fmap fsLocations)
+getBlockLocations :: HdfsPath -> Hdfs (V.Vector FileStatus)
+getBlockLocations path = getListingInternal True path >>= return . (fromMaybe V.empty)
 
 lastFileName :: V.Vector FileStatus -> ByteString
 lastFileName v | V.null v  = ""
