@@ -108,4 +108,11 @@ data FileStatus = FileStatus
     -- Optional fields for file
     , fsBlockReplication :: !Word16
     , fsBlockSize        :: !Word64
+    , fsLocations        :: !FsLocations
     } deriving (Eq, Ord, Show)
+
+data FsLocations
+  = NotRequested
+  | FsLocations (V.Vector (Word64, V.Vector BlockLocation))
+  deriving (Eq, Ord, Show)
+type BlockLocation = (Text, Text)

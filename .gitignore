@@ -3,3 +3,4 @@ sample
 /cabal.sandbox.config
 /dist/
 .stack-work
+*_flymake.hs

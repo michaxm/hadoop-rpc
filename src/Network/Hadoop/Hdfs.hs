@@ -16,6 +16,7 @@ module Network.Hadoop.Hdfs
 
     , getListing
     , getListing'
+    , getBlockLocations
     , getListingRecursive
     , getFileInfo
     , getContentSummary
@@ -39,7 +40,7 @@ import           Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
-import           Data.Word (Word32)
+import           Data.Word (Word32, Word64)
 
 import qualified Data.Hadoop.Protobuf.ClientNameNode as P
 import qualified Data.Hadoop.Protobuf.Hdfs as P
@@ -186,8 +187,26 @@ getPartialAsync c path startAfter k = invokeAsync c "getListing" request k'
 ------------------------------------------------------------------------
 
 getListing :: HdfsPath -> Hdfs (Maybe (V.Vector FileStatus))
-getListing path = do
-    mDirList <- getPartialListing path ""
+getListing = getListingInternal False
+
+getListing' :: HdfsPath -> Hdfs (V.Vector FileStatus)
+getListing' path = fromMaybe V.empty <$> getListing path
+
+{-|
+ Accesses a path as getListing does, but additionally requests the block file locations. Ony returns those.
+-}
+getBlockLocations :: HdfsPath -> Hdfs (V.Vector FsLocations)
+getBlockLocations path = getListingInternal True path >>= return . (fromMaybe V.empty) >>= return . (fmap fsLocations)
+
+lastFileName :: V.Vector FileStatus -> ByteString
+lastFileName v | V.null v  = ""
+               | otherwise = fsPath (V.last v)
+
+------------------------------------------------------------------------
+
+getListingInternal :: Bool -> HdfsPath -> Hdfs (Maybe (V.Vector FileStatus))
+getListingInternal requestLocations path = do
+    mDirList <- getPartialListing path "" requestLocations
     case mDirList of
       Nothing                    -> return Nothing
       Just (PartialListing 0 fs) -> return (Just fs)
@@ -196,7 +215,7 @@ getListing path = do
     loop :: [V.Vector FileStatus] -> ByteString -> Hdfs (V.Vector FileStatus)
     loop ps startAfter = do
         PartialListing{..} <- fromMaybe (PartialListing 0 V.empty)
-                          <$> getPartialListing path startAfter
+                          <$> getPartialListing path startAfter requestLocations
 
         let ps' = ps ++ [lsFiles]
 
@@ -204,21 +223,12 @@ getListing path = do
            then return (V.concat ps')
            else loop ps' (lastFileName lsFiles)
 
-getListing' :: HdfsPath -> Hdfs (V.Vector FileStatus)
-getListing' path = fromMaybe V.empty <$> getListing path
-
-lastFileName :: V.Vector FileStatus -> ByteString
-lastFileName v | V.null v  = ""
-               | otherwise = fsPath (V.last v)
-
-------------------------------------------------------------------------
-
-getPartialListing :: HdfsPath -> HdfsPath -> Hdfs (Maybe PartialListing)
-getPartialListing path startAfter = fmap fromProtoDirectoryListing . getField . P.lsDirList <$>
+getPartialListing :: HdfsPath -> HdfsPath -> Bool -> Hdfs (Maybe PartialListing)
+getPartialListing path startAfter requestLocations = fmap fromProtoDirectoryListing . getField . P.lsDirList <$>
     hdfsInvoke "getListing" P.GetListingRequest
     { P.lsSrc          = putField (T.decodeUtf8 path)
     , P.lsStartAfter   = putField startAfter
-    , P.lsNeedLocation = putField False
+    , P.lsNeedLocation = putField requestLocations
     }
 
 getFileInfo :: HdfsPath -> Hdfs (Maybe FileStatus)
@@ -301,7 +311,19 @@ fromProtoFileStatus p = FileStatus
     , fsSymLink          = getField $ P.fsSymLink p
     , fsBlockReplication = fromIntegral . fromMaybe 0 . getField $ P.fsBlockReplication p
     , fsBlockSize        = fromMaybe 0 . getField $ P.fsBlockSize p
+    , fsLocations        = fromMaybe NotRequested $ getField (P.fsLocations p) >>= return . extractProtoLocations
     }
+
+extractProtoLocations :: P.LocatedBlocks -> FsLocations
+extractProtoLocations locatedBlocks = FsLocations $ V.map extractProtoLocation $ V.fromList $ getField $ P.lbBlocks locatedBlocks
+  where
+    extractProtoLocation :: P.LocatedBlock -> (Word64, V.Vector BlockLocation)
+    extractProtoLocation block = (getField (P.lbOffset block), V.map extractBlockLocation $ V.fromList $ getField $ P.lbLocations block)
+      where
+        extractBlockLocation :: P.DataNodeInfo -> BlockLocation
+        extractBlockLocation nodeInfo =
+          let dataNodeId = getField $ P.dnId nodeInfo
+          in (getField (P.dnIpAddr dataNodeId), getField (P.dnHostName dataNodeId))
 
 fromProtoFileType :: P.FileType -> FileType
 fromProtoFileType p = case p of
